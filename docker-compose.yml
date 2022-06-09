@@ -48,6 +48,8 @@ services:
         - ./deploy/handle/.env
       command:
         - ${PROJECT_NAME}
+      networks:
+        - default
 
   curator_nginx:
     image: nginx:${NGINX_VERSION}
@@ -84,6 +86,8 @@ services:
       - mongo_data:/data/db/
       - ./deploy/mongo/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
     command: "--auth"
+    networks:
+      - default
 
   curator_postgres:
     image: postgres:${POSTGRES_VERSION}
@@ -95,6 +99,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASS}
       - POSTGRES_DB=${POSTGRES_DB}
+    networks:
+      - default
 
   curator_redis:
     image: redis:${REDIS_VERSION}
@@ -103,6 +109,8 @@ services:
     restart: always
     volumes:
       - redis_data:/data
+    networks:
+      - default
 
 volumes:
   mongo_data:
