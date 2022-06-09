@@ -16,6 +16,8 @@ echo "********* Collect static files... *********"
 /srv/curator/manage.py collectstatic --noinput
 echo "********* Compile messages... *********"
 /srv/curator/manage.py compilemessages
+echo "********* Create cache tables... *********"
+/srv/curator/manage.py createcachetable
 
 echo "********* Starting Celery worker... *********"
 celery -A $PROJECT_NAME worker -E -l info &
