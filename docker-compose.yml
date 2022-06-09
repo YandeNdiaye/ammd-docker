@@ -1,0 +1,120 @@
+version: "3"
+services:
+  cdcs:
+      image: ${IMAGE_NAME}:${IMAGE_VERSION}
+      build:
+        context: ./build/cdcs
+        args:
+        - CDCS_REPO=${CDCS_REPO}
+        - BRANCH=${BRANCH}
+        - PROJECT_NAME=${PROJECT_NAME}
+        - PIP_CONF=${PIP_CONF}
+        - PYTHON_VERSION=${PYTHON_VERSION}
+      container_name: ${PROJECT_NAME}_cdcs
+      restart: always
+      depends_on:
+        - curator_mongo
+        - curator_redis
+        - curator_postgres
+      volumes:
+        - cdcs_socket:/tmp/curator/
+        - cdcs_static:/srv/curator/static.prod
+        - ./deploy/cdcs/${SETTINGS}.py:/srv/curator/${PROJECT_NAME}/${SETTINGS}.py
+      environment:
+        - DJANGO_SETTINGS_MODULE=${PROJECT_NAME}.${SETTINGS}
+        - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+        - SERVER_URI=${SERVER_URI}
+        - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+        - SERVER_NAME=${SERVER_NAME:-}
+        - MONGO_HOST=${PROJECT_NAME}_cdcs_mongo
+        - MONGO_PORT=${MONGO_PORT:-27017}
+        - MONGO_DB=${MONGO_DB}
+        - MONGO_USER=${MONGO_USER}
+        - MONGO_PASS=${MONGO_PASS}
+        - POSTGRES_HOST=${PROJECT_NAME}_cdcs_postgres
+        - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+        - POSTGRES_DB=${POSTGRES_DB}
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASS=${POSTGRES_PASS}
+        - REDIS_HOST=${PROJECT_NAME}_cdcs_redis
+        - REDIS_PORT=${REDIS_PORT:-6379}
+        - REDIS_PASS=${REDIS_PASS}
+        - UWSGI_PROCESSES=${UWSGI_PROCESSES:-10}
+        - MONITORING_SERVER_URI=${MONITORING_SERVER_URI:-}
+        - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST:-}
+        - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT:-}
+      env_file:
+        - ./deploy/saml2/.env
+        - ./deploy/handle/.env
+      command:
+        - ${PROJECT_NAME}
+      networks:
+        - homelab_network
+        - default
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.ammd.rule=Host(`kea-ammd.${SERVER_URL}`)"
+        - "traefik.docker.network=homelab_network"
+
+
+  curator_nginx:
+    image: nginx:${NGINX_VERSION}
+    container_name: ${PROJECT_NAME}_cdcs_nginx
+    restart: always
+    ports:
+      - "${NGINX_PORT_80}:80"
+      - "${NGINX_PORT_443}:443"
+    depends_on:
+      - cdcs
+    environment:
+      - HOSTNAME=${HOSTNAME}
+    volumes:
+      - cdcs_socket:/tmp/curator/
+      - cdcs_static:/srv/curator_static
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./deploy/nginx/${SERVER_CONF}.conf:/etc/nginx/templates/default.conf.template
+
+  curator_mongo:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${PROJECT_NAME}_cdcs_mongo
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ADMIN_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ADMIN_PASS}
+      - MONGO_INITDB_DATABASE=${MONGO_DB}
+      - MONGO_USER=${MONGO_USER}
+      - MONGO_PASS=${MONGO_PASS}
+    volumes:
+      - mongo_data:/data/db/
+      - ./deploy/mongo/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
+    command: "--auth"
+
+  curator_postgres:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: ${PROJECT_NAME}_cdcs_postgres
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASS}
+      - POSTGRES_DB=${POSTGRES_DB}
+
+  curator_redis:
+    image: redis:${REDIS_VERSION}
+    container_name: ${PROJECT_NAME}_cdcs_redis
+    command: redis-server --requirepass ${REDIS_PASS}
+    restart: always
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mongo_data:
+  postgres_data:
+  redis_data:
+  cdcs_socket:
+  cdcs_static:
+
+networks:
+  homelab_network:
+    external: true
