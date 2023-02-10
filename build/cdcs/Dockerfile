@@ -32,6 +32,7 @@ RUN cd $DOCKYARD_SRVPROJ \
 WORKDIR $DOCKYARD_SRVPROJ
 RUN pip install -r requirements.txt
 RUN pip install -r requirements.core.txt
+RUN pip install importlib_metadata==4.13.0
 
 # Get entrypoint ready for the image
 COPY ./docker-entrypoint.sh /

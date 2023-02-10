@@ -29,7 +29,9 @@ services:
     volumes:
       - mongo_data:/data/db/
       - ./mongo/mongo-init.sh:/docker-entrypoint-initdb.d/mongo-init.sh:ro
-    command: "--auth"
+    command: "--repair --auth"
+    networks:
+      - default
   curator_postgres:
     image: postgres:${POSTGRES_VERSION}
     container_name: ${PROJECT_NAME}_cdcs_postgres
